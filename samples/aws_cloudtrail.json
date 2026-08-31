@@ -1,0 +1,42 @@
+[
+  {
+    "eventVersion": "1.08",
+    "userIdentity": {
+      "type": "IAMUser",
+      "principalId": "AIDAEXAMPLEADMIN",
+      "userName": "secops_lead"
+    },
+    "eventTime": "2026-08-30T10:32:21Z",
+    "eventSource": "iam.amazonaws.com",
+    "eventName": "CreateSecurityGroupRule",
+    "awsRegion": "us-east-1",
+    "sourceIPAddress": "192.168.1.5",
+    "userAgent": "AWS-Console-Chrome",
+    "requestParameters": {
+      "groupId": "sg-0123456789abcdef0",
+      "ipPermissions": {
+        "items": [
+          {
+            "ipProtocol": "tcp",
+            "fromPort": 443,
+            "toPort": 443
+          }
+        ]
+      }
+    }
+  },
+  {
+    "eventVersion": "1.08",
+    "userIdentity": {
+      "type": "Root",
+      "principalId": "123456789012"
+    },
+    "eventTime": "2026-08-30T10:35:10Z",
+    "eventSource": "signin.amazonaws.com",
+    "eventName": "ConsoleLogin",
+    "awsRegion": "us-east-1",
+    "sourceIPAddress": "203.0.113.88",
+    "errorCode": "FailedAuthentication",
+    "errorMessage": "Invalid password provided"
+  }
+]

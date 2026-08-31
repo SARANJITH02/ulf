@@ -1,0 +1,82 @@
+:root {
+  /* Light Theme Tokens */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --bg-code: #0f172a;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #f8fafc;
+  --text-code: #e2e8f0;
+
+  --border-color: #e2e8f0;
+  --border-subtle: #cbd5e1;
+  --border-focus: #0284c7;
+
+  --accent-cyan: #0284c7;
+  --accent-cyan-subtle: rgba(2, 132, 199, 0.1);
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+
+  --status-success: #16a34a;
+  --status-success-bg: rgba(22, 163, 74, 0.12);
+  --status-warning: #d97706;
+  --status-warning-bg: rgba(217, 119, 6, 0.12);
+  --status-danger: #dc2626;
+  --status-danger-bg: rgba(220, 38, 38, 0.12);
+  --status-info: #0284c7;
+  --status-info-bg: rgba(2, 132, 199, 0.12);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(2, 132, 199, 0.2);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+}
+
+[data-theme='dark'] {
+  /* Dark Theme Tokens (Sleek Cybersecurity Operations Palette) */
+  --bg-primary: #090d16;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-card: #131d33;
+  --bg-hover: #1e293b;
+  --bg-code: #070b12;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
+  --text-code: #00f0ff;
+
+  --border-color: #1e293b;
+  --border-subtle: #334155;
+  --border-focus: #00f0ff;
+
+  --accent-cyan: #00f0ff;
+  --accent-cyan-subtle: rgba(0, 240, 255, 0.12);
+  --accent-blue: #38bdf8;
+  --accent-purple: #a855f7;
+
+  --status-success: #00e676;
+  --status-success-bg: rgba(0, 230, 118, 0.15);
+  --status-warning: #ffb300;
+  --status-warning-bg: rgba(255, 179, 0, 0.15);
+  --status-danger: #ff3d71;
+  --status-danger-bg: rgba(255, 61, 113, 0.15);
+  --status-info: #00f0ff;
+  --status-info-bg: rgba(0, 240, 255, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(0, 240, 255, 0.25);
+}

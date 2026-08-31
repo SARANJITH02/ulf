@@ -1,0 +1,5 @@
+CEF:0|Suricata|Network-IDS|6.0.4|2001219|ET SCAN Potential SSH Scan|3|src=192.168.1.150 dst=10.10.10.20 spt=49152 dpt=22 proto=TCP act=blocked msg=ET SCAN
+CEF:0|Suricata|Network-IDS|6.0.4|2013028|ET POLICY TLS Suspicious SNI Usage|4|src=192.168.1.88 dst=104.244.42.1 spt=51234 dpt=443 proto=TCP act=allowed msg=ET POLICY
+CEF:0|Suricata|Network-IDS|6.0.4|2024897|ET MALWARE PowerShell Download Cradle|5|src=192.168.1.12 dst=185.220.101.5 spt=55100 dpt=80 proto=TCP act=blocked msg=ET MALWARE
+CEF:0|Suricata|Network-IDS|6.0.4|2000334|ET POLICY Outbound RDP Attempt|2|src=192.168.1.45 dst=203.0.113.88 spt=60123 dpt=3389 proto=TCP act=blocked msg=ET POLICY
+CEF:0|Suricata|Network-IDS|6.0.4|2010999|ET DNS Query for Suspicious TLD|3|src=192.168.1.66 dst=10.10.10.2 spt=59000 dpt=53 proto=UDP act=allowed msg=ET DNS

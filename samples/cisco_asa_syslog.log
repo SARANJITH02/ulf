@@ -1,0 +1,5 @@
+<134>Aug 30 10:32:21 cisco-asa %ASA-4-106023: Deny tcp src inside:192.168.1.5/52100 dst outside:10.10.10.20/443 by access-group "access-group-dmz-01"
+<134>Aug 30 10:32:22 cisco-asa %ASA-4-106023: Deny tcp src inside:192.168.1.6/52101 dst outside:10.10.10.20/443 by access-group "access-group-dmz-01"
+<134>Aug 30 10:32:25 cisco-asa %ASA-2-106001: Inbound TCP connection denied from 198.51.100.45/49152 to 203.0.113.10/22 flags SYN on interface outside
+<134>Aug 30 10:32:30 cisco-asa %ASA-6-302013: Built outbound TCP connection 987654 for outside:10.10.10.50/443 (10.10.10.50/443) to inside:192.168.1.100/54321 (192.168.1.100/54321)
+<134>Aug 30 10:32:35 cisco-asa %ASA-4-106023: Deny udp src inside:192.168.1.15/61234 dst outside:8.8.8.8/53 by access-group "block-external-dns"

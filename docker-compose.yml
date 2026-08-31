@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  ulpf-postgres:
+    image: postgres:16-alpine
+    container_name: ulpf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ulpfdb}
+      POSTGRES_USER: ${POSTGRES_USER:-ulpf_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ulpf_secret_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ulpf_user} -d ${POSTGRES_DB:-ulpfdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ulpf-net
+
+  ulpf-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ulpf-backend
+    restart: unless-stopped
+    depends_on:
+      ulpf-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://ulpf-postgres:5432/${POSTGRES_DB:-ulpfdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ulpf_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ulpf_secret_password}
+      JWT_SECRET: ${JWT_SECRET:-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b}
+      SYSLOG_UDP_PORT: 1514
+      SYSLOG_TCP_PORT: 1514
+    ports:
+      - "8080:8080"
+      - "1514:1514/udp"
+      - "1514:1514/tcp"
+    networks:
+      - ulpf-net
+
+  ulpf-frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: ulpf-frontend
+    restart: unless-stopped
+    depends_on:
+      - ulpf-backend
+    ports:
+      - "3000:80"
+    networks:
+      - ulpf-net
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  ulpf-net:
+    driver: bridge

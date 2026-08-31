@@ -1,0 +1,59 @@
+[
+  {
+    "id": "RULE-MITRE-001",
+    "name": "SSH/RDP Brute Force Attempt",
+    "conditionType": "PORT_ACTION",
+    "destinationPorts": [22, 3389],
+    "actions": ["blocked", "denied", "drop", "failure", "failed"],
+    "techniqueId": "T1110",
+    "techniqueName": "Brute Force",
+    "tactic": "Credential Access",
+    "category": "authentication_brute_force",
+    "riskScore": 75
+  },
+  {
+    "id": "RULE-MITRE-002",
+    "name": "Network Service Discovery / Port Scan",
+    "conditionType": "KEYWORD_OR_PORT",
+    "keywords": ["scan", "sweep", "probe", "portscan", "106023"],
+    "techniqueId": "T1046",
+    "techniqueName": "Network Service Discovery",
+    "tactic": "Discovery",
+    "category": "port_scanning",
+    "riskScore": 70
+  },
+  {
+    "id": "RULE-MITRE-003",
+    "name": "Non-Standard Application Protocol Port",
+    "conditionType": "SUSPICIOUS_PORT",
+    "destinationPorts": [4444, 1337, 31337, 6667],
+    "techniqueId": "T1071",
+    "techniqueName": "Application Layer Protocol",
+    "tactic": "Command and Control",
+    "category": "c2_traffic",
+    "riskScore": 85
+  },
+  {
+    "id": "RULE-MITRE-004",
+    "name": "Cleartext Credential Exposure",
+    "conditionType": "PORT",
+    "destinationPorts": [21, 23],
+    "techniqueId": "T1552",
+    "techniqueName": "Unsecured Credentials",
+    "tactic": "Credential Access",
+    "category": "cleartext_protocol",
+    "riskScore": 60
+  },
+  {
+    "id": "RULE-MITRE-005",
+    "name": "DNS Tunneling / Data Staging",
+    "conditionType": "KEYWORD_OR_PORT",
+    "destinationPorts": [53],
+    "keywords": ["txt-query", "large-query", "tunnel"],
+    "techniqueId": "T1048",
+    "techniqueName": "Exfiltration Over Alternative Protocol",
+    "tactic": "Exfiltration",
+    "category": "dns_exfiltration",
+    "riskScore": 80
+  }
+]
