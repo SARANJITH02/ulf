@@ -47,8 +47,8 @@ services:
 
   ulpf-frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: ulpf-frontend
     restart: unless-stopped
     depends_on:
