@@ -36,6 +36,7 @@ export const Dashboard: React.FC = () => {
 
   const [recentEvents, setRecentEvents] = useState<NormalizedEventRecord[]>([]);
   const [injecting, setInjecting] = useState(false);
+  const [injectFeedback, setInjectFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     // Initial fetch
@@ -65,6 +66,7 @@ export const Dashboard: React.FC = () => {
 
   const handleInjectSample = async () => {
     setInjecting(true);
+    setInjectFeedback(null);
     const samples = [
       '<134>Aug 30 10:32:21 cisco-asa %ASA-4-106023: Deny tcp src inside:192.168.1.5/52100 dst outside:10.10.10.20/443 by access-group "access-group-dmz-01"',
       'CEF:0|Suricata|Network-IDS|6.0.4|2001219|ET SCAN Potential SSH Scan|3|src=192.168.1.150 dst=10.10.10.20 spt=49152 dpt=22 proto=TCP act=blocked msg=ET SCAN',
@@ -73,12 +75,28 @@ export const Dashboard: React.FC = () => {
     ];
     try {
       await ApiClient.ingestBulk(samples, 'DEMO_INJECTOR');
-      const updatedMetrics = await ApiClient.getMetrics();
-      setMetrics(updatedMetrics);
-      const updatedEvents = await ApiClient.getRecentEvents();
-      setRecentEvents(updatedEvents);
-    } catch (e) {
+      setInjectFeedback({
+        type: 'success',
+        message: `Successfully injected ${samples.length} multi-format telemetry events (Cisco Syslog, CEF, Palo Alto CSV, AWS JSON)!`,
+      });
+      setTimeout(() => setInjectFeedback(null), 5000);
+
+      // Attempt immediate UI metrics refresh if session is active
+      try {
+        const updatedMetrics = await ApiClient.getMetrics();
+        setMetrics(updatedMetrics);
+        const updatedEvents = await ApiClient.getRecentEvents();
+        setRecentEvents(updatedEvents);
+      } catch (refreshErr) {
+        console.warn('Post-injection metrics refresh skipped:', refreshErr);
+      }
+    } catch (e: any) {
       console.error(e);
+      setInjectFeedback({
+        type: 'error',
+        message: `Injection failed: ${e.message || 'Unknown network or backend error'}`,
+      });
+      setTimeout(() => setInjectFeedback(null), 7000);
     } finally {
       setInjecting(false);
     }
@@ -100,7 +118,7 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button
             onClick={handleInjectSample}
             disabled={injecting}
@@ -120,6 +138,27 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {injectFeedback && (
+        <div
+          style={{
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: injectFeedback.type === 'success' ? 'var(--status-success-bg)' : 'var(--status-danger-bg)',
+            border: `1px solid ${injectFeedback.type === 'success' ? 'var(--status-success)' : 'var(--status-danger)'}`,
+            color: injectFeedback.type === 'success' ? 'var(--status-success)' : 'var(--status-danger)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          {injectFeedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertOctagon size={18} />}
+          <span>{injectFeedback.message}</span>
+        </div>
+      )}
 
       {/* KPI Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
@@ -370,6 +409,66 @@ export const Dashboard: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Differentiators Quick Access Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
+        <div
+          onClick={() => navigate('/audit')}
+          className="card card-interactive"
+          style={{ padding: '1.25rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>IMMUTABLE</span>
+              <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Merkle-Batched Cryptographic Audit Ledger
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Verify inclusion proofs, inspect batch roots, and export compliance packages.
+            </p>
+          </div>
+          <ArrowUpRight size={18} style={{ color: 'var(--accent-cyan)' }} />
+        </div>
+
+        <div
+          onClick={() => navigate('/detections')}
+          className="card card-interactive"
+          style={{ padding: '1.25rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>SIGMA ENGINE</span>
+              <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Real-Time Threat Detections Feed
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+              View live matches mapped to MITRE ATT&CK techniques (T1110, T1046, T1071, T1552, T1048).
+            </p>
+          </div>
+          <ArrowUpRight size={18} style={{ color: 'var(--accent-cyan)' }} />
+        </div>
+
+        <div
+          onClick={() => navigate('/incidents')}
+          className="card card-interactive"
+          style={{ padding: '1.25rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>AUTO ROOT-CAUSE</span>
+              <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Correlated Multi-Stage Incidents
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Kill-chain progression timeline & probable root-cause narrative hypotheses across $\ge 2$ tactics.
+            </p>
+          </div>
+          <ArrowUpRight size={18} style={{ color: 'var(--accent-cyan)' }} />
         </div>
       </div>
     </div>

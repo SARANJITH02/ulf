@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../theme/ThemeContext';
 import { ApiClient } from '../api/client';
-import { Sun, Moon, LogOut, Shield, Activity, Lock } from 'lucide-react';
+import { wsService } from '../api/websocket';
+import { Sun, Moon, LogOut, Shield, Activity, Lock, Bell, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const TopBar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [timeUtc, setTimeUtc] = useState('');
+  const [alertCount, setAlertCount] = useState(0);
+  const [latestAlert, setLatestAlert] = useState<string | null>(null);
   const user = ApiClient.getCurrentUser();
 
   useEffect(() => {
@@ -18,6 +21,18 @@ export const TopBar: React.FC = () => {
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const unsub = wsService.onAlert((alert) => {
+      setAlertCount((prev) => prev + 1);
+      const title = alert.ruleTitle || alert.parserName || alert.alertType || 'Security Alert';
+      setLatestAlert(title);
+      setTimeout(() => setLatestAlert(null), 6000);
+    });
+    return () => {
+      unsub();
+    };
   }, []);
 
   const handleLogout = () => {
@@ -60,7 +75,70 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Live Alert Toast / Badge */}
+        <button
+          onClick={() => {
+            setAlertCount(0);
+            navigate('/detections');
+          }}
+          className={`btn ${alertCount > 0 ? 'btn-primary' : 'btn-secondary'}`}
+          style={{
+            padding: '0.45rem 0.75rem',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            position: 'relative',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+          }}
+          title="View Live Detections & Alerts"
+        >
+          {alertCount > 0 ? <Flame size={16} className="pulse" /> : <Bell size={16} />}
+          <span>{alertCount > 0 ? `${alertCount} Alert${alertCount === 1 ? '' : 's'}` : 'Alerts'}</span>
+          {alertCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--status-danger)',
+                border: '2px solid var(--bg-secondary)',
+              }}
+            />
+          )}
+        </button>
+
+        {/* Transient Alert Toast */}
+        {latestAlert && (
+          <div
+            onClick={() => navigate('/detections')}
+            style={{
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              backgroundColor: 'var(--status-danger-bg)',
+              color: 'var(--status-danger)',
+              border: '1px solid var(--status-danger)',
+              padding: '0.35rem 0.65rem',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              maxWidth: '220px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Flame size={12} /> {latestAlert}
+          </div>
+        )}
+
         {/* UTC Clock */}
         <div
           style={{

@@ -42,4 +42,7 @@ public class RawEvent {
 
     @Column(length = 32)
     private String processingStatus; // PROCESSED, DLQ, PENDING
+
+    @Column(length = 64)
+    private String merkleBatchId; // null until batched in Merkle tree
 }

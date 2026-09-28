@@ -1,0 +1,19 @@
+title: DNS Tunneling or Exfiltration Query Burst
+id: SIGMA-T1048-DNS-001
+status: production
+description: Detects suspicious high-volume DNS requests, TXT lookups, or potential data staging for exfiltration.
+level: high
+tags:
+  - attack.t1048
+  - attack.exfiltration
+logsource:
+  category: network_traffic
+detection:
+  selection:
+    destination.port: 53
+    raw.message|contains:
+      - "txt-query"
+      - "large-query"
+      - "tunnel"
+      - "staging"
+  condition: selection

@@ -9,7 +9,10 @@ import {
   Share2,
   Shield,
   Layers,
-  Terminal,
+  FileCheck2,
+  Flame,
+  Lock,
+  Link2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,6 +24,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/lab', label: 'Unknown Log Lab', icon: FlaskConical, badge: 'Flagship' },
     { to: '/stream', label: 'Live Stream Viewer', icon: Radio, live: true },
+    { to: '/incidents', label: 'Attack Incidents', icon: Link2, badge: 'Correlated' },
+    { to: '/audit', label: 'Audit Ledger', icon: FileCheck2, badge: 'Merkle' },
+    { to: '/detections', label: 'Detection Rules', icon: Flame, badge: 'Sigma' },
     { to: '/parsers', label: 'Parser Manager', icon: Cpu },
     { to: '/rules', label: 'Rules Configuration', icon: Sliders },
     { to: '/export', label: 'SIEM Exporter', icon: Share2 },

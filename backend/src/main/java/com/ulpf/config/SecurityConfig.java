@@ -45,15 +45,30 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)) // H2 Console support
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication token is missing, invalid, or expired. Please sign in.\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access denied. Insufficient permissions for this action.\"}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
+                        // CORS preflight requests
+                        .requestMatchers(org.springframework.web.cors.CorsUtils::isPreFlightRequest).permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Auth & Ingestion are unauthenticated (background network listeners / agent push)
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/ingest/**").permitAll()
+                        .requestMatchers("/api/v1/auth", "/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/ingest", "/api/v1/ingest/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         // Public read-only schema/export/health
-                        .requestMatchers(HttpMethod.GET, "/api/v1/schema/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/schema", "/api/v1/schema/**").permitAll()
                         // All other API endpoints require authenticated operator
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().permitAll()

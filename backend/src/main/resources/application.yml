@@ -8,7 +8,7 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: jdbc:h2:mem:ulpfdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:file:./data/db/ulpfdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -37,13 +37,25 @@ ulpf:
     jwt-expiration-ms: 86400000 # 24 hours
   metrics:
     broadcast-interval-ms: 1000
+  ledger:
+    file-path: "./data/ledger/merkle-ledger.jsonl"
+    batch-cron: "0 0 * * * *" # Hourly batching by default
   rules:
     confidence-high-threshold: 0.90
     confidence-medium-threshold: 0.70
     dlq-max-retries: 3
     enrichment-rfc1918-enabled: true
     enrichment-mitre-enabled: true
+    sigma-enabled: true
     require-operator-approval: true
+  drift:
+    check-interval-ms: 300000 # 5 minutes
+    confidence-drop-threshold: 0.15 # 15 percentage points drop
+    success-rate-threshold: 0.85 # 85% success rate baseline
+  correlation:
+    enabled: true
+    window-minutes: 30
+    check-interval-ms: 120000 # 2 minutes
 
 management:
   endpoints:

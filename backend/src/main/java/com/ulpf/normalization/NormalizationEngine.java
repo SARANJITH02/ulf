@@ -16,6 +16,7 @@ import com.ulpf.parsers.ParserPlugin;
 import com.ulpf.repository.NormalizedEventRepository;
 import com.ulpf.repository.RawEventRepository;
 import com.ulpf.rules.RuleEngine;
+import com.ulpf.rules.SigmaRuleService;
 import com.ulpf.validation.DlqService;
 import com.ulpf.validation.EventValidator;
 import com.ulpf.validation.ValidationResult;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,6 +43,7 @@ public class NormalizationEngine {
     private final OfflineIpClassifier ipClassifier;
     private final IanaPortService ianaPortService;
     private final MitreMapper mitreMapper;
+    private final SigmaRuleService sigmaRuleService;
     private final EventValidator eventValidator;
     private final DlqService dlqService;
     private final RuleEngine ruleEngine;
@@ -152,6 +155,19 @@ public class NormalizationEngine {
             }
         }
 
+        // Embedded Sigma Detection Rule Engine Evaluation
+        boolean sigmaEnabled = ruleEngine.getBooleanRule("rules.sigma.enabled", true);
+        List<OcsfSchema.SigmaMatchSummary> sigmaMatches = null;
+        if (sigmaEnabled) {
+            sigmaMatches = sigmaRuleService.evaluate(ocsf);
+            if (sigmaMatches != null && !sigmaMatches.isEmpty()) {
+                if (ocsf.getThreat() == null) {
+                    ocsf.setThreat(new OcsfSchema.ThreatDetail());
+                }
+                ocsf.getThreat().setSigmaMatches(sigmaMatches);
+            }
+        }
+
         // 7. ECS Alias Map & Confidence
         if (ocsf.getUlpf() == null) {
             ocsf.setUlpf(new OcsfSchema.UlpfMetadata());
@@ -229,6 +245,11 @@ public class NormalizationEngine {
 
         rawEvent.setProcessingStatus("PROCESSED");
         rawEventRepository.save(rawEvent);
+
+        // Record Sigma matches and broadcast to /topic/alerts
+        if (sigmaMatches != null && !sigmaMatches.isEmpty()) {
+            sigmaRuleService.recordMatches(ocsf, sigmaMatches);
+        }
 
         // Broadcast to live WebSocket event tail
         metricsBroadcaster.broadcastEvent(ocsf);

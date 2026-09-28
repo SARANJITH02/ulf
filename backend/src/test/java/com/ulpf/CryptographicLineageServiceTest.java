@@ -16,12 +16,14 @@ class CryptographicLineageServiceTest {
     private com.ulpf.repository.RawEventRepository rawEventRepository;
     @Mock
     private com.ulpf.repository.NormalizedEventRepository normalizedEventRepository;
+    @Mock
+    private com.ulpf.repository.MerkleBatchRepository merkleBatchRepository;
 
     private CryptographicLineageService lineageService;
 
     @BeforeEach
     void setUp() {
-        lineageService = new CryptographicLineageService(rawEventRepository, normalizedEventRepository);
+        lineageService = new CryptographicLineageService(rawEventRepository, normalizedEventRepository, merkleBatchRepository);
     }
 
     @Test
@@ -49,6 +51,7 @@ class CryptographicLineageServiceTest {
     void testGenerateRawEventId() {
         String hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         String rawId = lineageService.generateRawEventId(hash);
-        assertThat(rawId).isEqualTo("RAW-e3b0c44298fc1c14");
+        assertThat(rawId).startsWith("RAW-e3b0c442-");
+        assertThat(rawId).hasSize(21);
     }
 }

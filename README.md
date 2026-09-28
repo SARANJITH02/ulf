@@ -14,14 +14,16 @@
 
 **ULPF (Universal Log Pre-processing Framework)** is a production-grade, air-gapped containerized middleware gateway engineered for enterprise Security Operations Centers (SOC). Sitting directly between perimeter security appliances (Firewalls, IDS/IPS, Cloud Audit Trails, Linux Hosts) and downstream SIEM/Data Lakes (ArcSight, IBM QRadar, Elastic, Splunk), ULPF provides:
 
-1. **Lossless Raw Log Preservation & Cryptographic Lineage:** Instant pre-parse SHA-256 hashing and deterministic ID generation with on-demand non-repudiation verification.
+1. **Lossless Raw Log Preservation & Merkle-Batched Cryptographic Audit Ledger:** Instant pre-parse SHA-256 hashing, binary Merkle tree batching (RFC 6962), append-only persistent ledger file (`./data/ledger/merkle-ledger.jsonl`), and $O(\log N)$ inclusion proof verification for complete non-repudiation.
 2. **Canonical OCSF Normalization:** Automatic mapping into the Open Cybersecurity Schema Framework (OCSF v1.1.0) with Elastic Common Schema (ECS) aliasing.
-3. **Two-Stage Drain Inference Engine (Zero Cloud / Native Java):** Online prefix-tree template mining + deterministic semantic recognizer for synthesizing parsers for novel and unseen log formats in real-time.
-4. **Mandatory Human Operator Approval Gate:** Strict policy enforcement preventing unreviewed parsers from auto-deploying.
-5. **Zero-Downtime Hot-Registration:** Newly approved dynamic parsers are instantly mounted into live JVM memory without requiring service or container restarts.
-6. **Air-Gapped Offline Enrichment:** Subnet-level RFC1918 private/public IP classification, embedded IANA port service resolution, and offline heuristic MITRE ATT&CK technique mapping.
-7. **Multi-SIEM Wire Translation:** Reverse translation of canonical OCSF events into ArcSight CEF, IBM QRadar LEEF, and Elastic ECS JSON.
-8. **Real-time SOC Telemetry:** High-throughput Netty Syslog UDP/TCP listeners on port 1514, sliding EPS meter, percentile latencies (`p50`, `p95`, `p99`), and WebSocket STOMP live feeds.
+3. **Embedded Sigma Detection Rule Engine:** Air-gapped runtime evaluation of standard Sigma detection YAML rules directly against canonical OCSF telemetry, with starter rule pack mapped to MITRE techniques (`T1110`, `T1046`, `T1071`, `T1552`, `T1048`) and unified alert broadcasting.
+4. **Parser Quality Drift Monitor:** Continuous sliding-window monitoring of parser confidence and success rates, triggering real-time drift breach alerts before bad data reaches downstream SIEMs.
+5. **Two-Stage Drain Inference Engine (Zero Cloud / Native Java):** Online prefix-tree template mining + deterministic semantic recognizer for synthesizing parsers for novel and unseen log formats in real-time.
+6. **Mandatory Human Operator Approval Gate:** Strict policy enforcement preventing unreviewed parsers from auto-deploying.
+7. **Zero-Downtime Hot-Registration:** Newly approved dynamic parsers are instantly mounted into live JVM memory without requiring service or container restarts.
+8. **Air-Gapped Offline Enrichment:** Subnet-level RFC1918 private/public IP classification, embedded IANA port service resolution, and offline heuristic MITRE ATT&CK technique mapping.
+9. **Multi-SIEM Wire Translation:** Reverse translation of canonical OCSF events into ArcSight CEF, IBM QRadar LEEF, and Elastic ECS JSON.
+10. **Real-time SOC Telemetry & Unified Alerts:** High-throughput Netty Syslog UDP/TCP listeners on port 1514, sliding EPS meter, percentile latencies (`p50`, `p95`, `p99`), and unified WebSocket STOMP alerts (`/topic/alerts`).
 
 ---
 

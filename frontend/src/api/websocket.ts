@@ -6,6 +6,7 @@ class WebSocketService {
   private client: Client | null = null;
   private metricsCallbacks: Set<(data: MetricsSnapshot) => void> = new Set();
   private eventCallbacks: Set<(data: OcsfEvent) => void> = new Set();
+  private alertCallbacks: Set<(data: any) => void> = new Set();
   private isConnected = false;
 
   connect() {
@@ -23,7 +24,6 @@ class WebSocketService {
 
     this.client.onConnect = () => {
       this.isConnected = true;
-      // console.log('[STOMP] Connected to ULPF Live Broker');
 
       // Subscribe to metrics
       this.client?.subscribe('/topic/metrics', (message) => {
@@ -42,6 +42,16 @@ class WebSocketService {
           this.eventCallbacks.forEach((cb) => cb(data));
         } catch (e) {
           console.error('Failed to parse event message', e);
+        }
+      });
+
+      // Subscribe to unified alert channel (/topic/alerts)
+      this.client?.subscribe('/topic/alerts', (message) => {
+        try {
+          const data = JSON.parse(message.body);
+          this.alertCallbacks.forEach((cb) => cb(data));
+        } catch (e) {
+          console.error('Failed to parse alert message', e);
         }
       });
     };
@@ -70,6 +80,14 @@ class WebSocketService {
     this.connect();
     return () => {
       this.eventCallbacks.delete(callback);
+    };
+  }
+
+  onAlert(callback: (data: any) => void): () => void {
+    this.alertCallbacks.add(callback);
+    this.connect();
+    return () => {
+      this.alertCallbacks.delete(callback);
     };
   }
 

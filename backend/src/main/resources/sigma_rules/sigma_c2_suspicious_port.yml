@@ -1,0 +1,18 @@
+title: Outbound Traffic to Known C2 / Trojan Ports
+id: SIGMA-T1071-C2PORT-001
+status: production
+description: Detects connection attempts to common command-and-control, reverse shell, or backdoor listening ports.
+level: critical
+tags:
+  - attack.t1071
+  - attack.command_and_control
+logsource:
+  category: network_traffic
+detection:
+  selection:
+    destination.port:
+      - 4444
+      - 1337
+      - 31337
+      - 6667
+  condition: selection

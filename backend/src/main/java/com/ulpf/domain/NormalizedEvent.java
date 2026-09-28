@@ -83,6 +83,9 @@ public class NormalizedEvent {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String ocsfJson;
 
+    @Column(length = 64)
+    private String merkleBatchId;
+
     @Column(nullable = false)
     private Instant processedAt;
 }

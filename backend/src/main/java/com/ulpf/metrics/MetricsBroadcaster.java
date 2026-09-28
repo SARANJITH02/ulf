@@ -35,4 +35,13 @@ public class MetricsBroadcaster {
             log.trace("Event broadcast skipped: {}", e.getMessage());
         }
     }
+
+    public void broadcastAlert(Object alert) {
+        if (alert == null) return;
+        try {
+            messagingTemplate.convertAndSend("/topic/alerts", alert);
+        } catch (Exception e) {
+            log.trace("Alert broadcast skipped: {}", e.getMessage());
+        }
+    }
 }

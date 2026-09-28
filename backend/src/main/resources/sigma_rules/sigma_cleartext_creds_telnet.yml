@@ -1,0 +1,14 @@
+title: Cleartext Telnet Management Traffic
+id: SIGMA-T1552-TELNET-001
+status: production
+description: Detects cleartext administrative Telnet connections exposing plaintext authentication credentials.
+level: medium
+tags:
+  - attack.t1552
+  - attack.credential_access
+logsource:
+  category: network_traffic
+detection:
+  selection:
+    destination.port: 23
+  condition: selection

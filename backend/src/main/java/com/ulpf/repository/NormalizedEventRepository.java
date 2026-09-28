@@ -39,6 +39,14 @@ public interface NormalizedEventRepository extends JpaRepository<NormalizedEvent
             @Param("endTime") Instant endTime,
             Pageable pageable);
 
+    List<NormalizedEvent> findByMerkleBatchId(String merkleBatchId);
+
+    List<NormalizedEvent> findTop500ByParserNameOrderByProcessedAtDesc(String parserName);
+
+    List<NormalizedEvent> findByProcessedAtAfterAndParserName(Instant since, String parserName);
+
+    List<NormalizedEvent> findByProcessedAtAfter(Instant since);
+
     @Query("SELECT COUNT(e) FROM NormalizedEvent e WHERE e.processedAt >= :since")
     long countEventsSince(@Param("since") Instant since);
 }

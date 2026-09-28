@@ -1,0 +1,14 @@
+title: Cleartext FTP Unsecured Authentication Protocol
+id: SIGMA-T1552-FTP-002
+status: production
+description: Detects legacy unencrypted FTP traffic on port 21 transmitting credentials in cleartext.
+level: low
+tags:
+  - attack.t1552
+  - attack.credential_access
+logsource:
+  category: network_traffic
+detection:
+  selection:
+    destination.port: 21
+  condition: selection

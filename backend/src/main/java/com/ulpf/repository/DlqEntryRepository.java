@@ -15,4 +15,6 @@ public interface DlqEntryRepository extends JpaRepository<DlqEntry, Long> {
     Page<DlqEntry> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     List<DlqEntry> findTop50ByOrderByCreatedAtDesc();
     long countByStatus(String status);
+    long countByDetectedFormat(String detectedFormat);
+    long countByDetectedFormatAndCreatedAtAfter(String detectedFormat, java.time.Instant since);
 }

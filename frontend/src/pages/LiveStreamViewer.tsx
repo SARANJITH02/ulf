@@ -18,6 +18,7 @@ import {
   CheckCircle,
   XCircle,
   Hash,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const LiveStreamViewer: React.FC = () => {
@@ -103,9 +104,13 @@ export const LiveStreamViewer: React.FC = () => {
     };
   }, [paused]);
 
+  const [merkleResult, setMerkleResult] = useState<any | null>(null);
+  const [verifyingMerkle, setVerifyingMerkle] = useState(false);
+
   const handleOpenInspector = async (record: NormalizedEventRecord) => {
     setSelectedEvent(record);
     setIntegrityResult(null);
+    setMerkleResult(null);
     setInspectModalOpen(true);
 
     try {
@@ -133,6 +138,19 @@ export const LiveStreamViewer: React.FC = () => {
       alert('Integrity audit failed: ' + e.message);
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const handleVerifyMerkle = async (eventId: string) => {
+    setVerifyingMerkle(true);
+    setMerkleResult(null);
+    try {
+      const res = await ApiClient.verifyMerkleInclusion(eventId);
+      setMerkleResult(res);
+    } catch (e: any) {
+      alert('Merkle proof verification failed: ' + e.message);
+    } finally {
+      setVerifyingMerkle(false);
     }
   };
 
@@ -374,15 +392,26 @@ export const LiveStreamViewer: React.FC = () => {
                   {selectedEvent.rawHashSha256}
                 </div>
               </div>
-              <button
-                onClick={() => handleVerifyIntegrity(selectedEvent.eventId)}
-                disabled={verifying}
-                className="btn btn-primary"
-                style={{ fontSize: '0.75rem', padding: '0.45rem 0.85rem' }}
-              >
-                <ShieldCheck size={14} />
-                <span>{verifying ? 'Auditing...' : 'Verify Cryptographic Integrity'}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => handleVerifyIntegrity(selectedEvent.eventId)}
+                  disabled={verifying}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.45rem 0.85rem' }}
+                >
+                  <ShieldCheck size={14} />
+                  <span>{verifying ? 'Auditing...' : 'Verify SHA-256 Digest'}</span>
+                </button>
+                <button
+                  onClick={() => handleVerifyMerkle(selectedEvent.eventId)}
+                  disabled={verifyingMerkle}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.75rem', padding: '0.45rem 0.85rem' }}
+                >
+                  <Lock size={14} />
+                  <span>{verifyingMerkle ? 'Verifying Tree...' : 'Verify Merkle Inclusion'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Integrity Audit Result Banner */}
@@ -413,6 +442,39 @@ export const LiveStreamViewer: React.FC = () => {
                   Recomputed: <strong>{integrityResult.recomputedRawHash}</strong><br />
                   Raw Byte Size: <strong>{integrityResult.rawByteLength} bytes</strong> • Lineage: <strong>{integrityResult.parserName} (v{integrityResult.parserVersion})</strong>
                 </div>
+              </div>
+            )}
+
+            {/* Merkle Inclusion Proof Banner */}
+            {merkleResult && (
+              <div
+                style={{
+                  padding: '1rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: merkleResult.verified ? 'var(--status-success-bg)' : 'var(--status-warning-bg)',
+                  border: `1px solid ${merkleResult.verified ? 'rgba(0, 230, 118, 0.4)' : 'rgba(255, 171, 0, 0.4)'}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                  {merkleResult.verified ? (
+                    <CheckCircle size={18} color="var(--status-success)" />
+                  ) : (
+                    <AlertTriangle size={18} color="var(--status-warning)" />
+                  )}
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: merkleResult.verified ? 'var(--status-success)' : 'var(--status-warning)' }}>
+                    {merkleResult.verified ? 'MERKLE TREE INCLUSION PROOF VERIFIED' : 'MERKLE INCLUSION PENDING'}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  {merkleResult.statusMessage}
+                </p>
+                {merkleResult.verified && (
+                  <div style={{ fontSize: '0.75rem', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
+                    Batch ID: <strong>{merkleResult.merkleBatchId}</strong> • Leaf Index: <strong>#{merkleResult.leafIndex}</strong> of <strong>{merkleResult.totalLeaves}</strong><br />
+                    Merkle Root: <strong>{merkleResult.merkleRoot}</strong><br />
+                    Proof Path Depth: <strong>{merkleResult.proofPath?.length || 0} sibling nodes</strong>
+                  </div>
+                )}
               </div>
             )}
 

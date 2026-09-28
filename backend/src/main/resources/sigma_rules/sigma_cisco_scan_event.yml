@@ -1,0 +1,18 @@
+title: Cisco Firewall Teardown or Scan Signature Event
+id: SIGMA-T1046-CISCO-002
+status: production
+description: Detects Cisco ASA security events corresponding to perimeter scanning or connection drops.
+level: medium
+tags:
+  - attack.t1046
+  - attack.discovery
+logsource:
+  category: firewall
+  product: asa
+detection:
+  selection:
+    raw.message|contains:
+      - "%ASA-4-106023"
+      - "%ASA-2-106001"
+      - "106023"
+  condition: selection

@@ -115,6 +115,22 @@ public class OcsfSchema {
         private String mitreTechniqueName;
         private String mitreTactic;
         private String category;
+        @Builder.Default
+        private java.util.List<SigmaMatchSummary> sigmaMatches = new java.util.ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class SigmaMatchSummary {
+        private String ruleId;
+        private String ruleTitle;
+        private String severity;
+        private String techniqueId;
+        private String tactic;
+        private String matchedDetails;
     }
 
     @Data

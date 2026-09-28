@@ -6,7 +6,15 @@ import {
   MetricsSnapshot,
   ParserSummary,
   DlqRecord,
-  RuleItem
+  RuleItem,
+  MerkleBatch,
+  MerkleInclusionResult,
+  SigmaRule,
+  SigmaMatch,
+  DriftAlert,
+  ParserDriftMetrics,
+  CorrelatedIncident,
+  IncidentDetailResponse
 } from './types';
 
 const API_BASE = '/api/v1';
@@ -27,26 +35,75 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (networkErr: any) {
+      const msg = networkErr?.message || '';
+      if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to ULPF backend. Ensure the backend server is running on port 8080.');
+      }
+      throw networkErr;
+    }
 
     if (response.status === 401) {
-      // Don't auto redirect on login failures
       if (!endpoint.includes('/auth/login')) {
-        localStorage.removeItem('ulpf-token');
-        localStorage.removeItem('ulpf-user');
+        this.logout();
         window.location.href = '/login';
+        throw new Error('Authentication session expired. Redirecting to login...');
       }
     }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `HTTP Error ${response.status}`);
+    if (response.status === 403) {
+      // On general view/read endpoints, 403 indicates an expired/invalid token
+      const isGeneralEndpoint =
+        endpoint.startsWith('/dashboard') ||
+        endpoint.startsWith('/incidents') ||
+        endpoint.startsWith('/events') ||
+        endpoint.startsWith('/audit') ||
+        endpoint.startsWith('/rules/sigma') ||
+        endpoint.startsWith('/parsers') ||
+        !token;
+
+      if (isGeneralEndpoint && !endpoint.includes('/auth/login')) {
+        this.logout();
+        window.location.href = '/login';
+        throw new Error('Authentication session expired. Redirecting to login...');
+      }
+
+      throw new Error('Access denied: Administrator privileges required for this action.');
     }
 
-    return response.json();
+    if (!response.ok) {
+      let errorMessage = `HTTP Error ${response.status}`;
+      try {
+        const text = await response.text();
+        if (text) {
+          try {
+            const errObj = JSON.parse(text);
+            errorMessage = errObj.message || errObj.error || text;
+          } catch {
+            errorMessage = text;
+          }
+        }
+      } catch {
+        // fallback to HTTP status
+      }
+      throw new Error(errorMessage);
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text as unknown as T;
+    }
   }
 
   // Auth
@@ -208,4 +265,103 @@ export class ApiClient {
   static async getSchema(): Promise<any> {
     return this.request('/schema');
   }
+
+  // --- MERKLE AUDIT LEDGER ---
+  static async listMerkleBatches(): Promise<MerkleBatch[]> {
+    return this.request<MerkleBatch[]>('/audit/merkle-batches');
+  }
+
+  static async getMerkleBatch(id: string): Promise<MerkleBatch> {
+    return this.request<MerkleBatch>(`/audit/merkle-batches/${encodeURIComponent(id)}`);
+  }
+
+  static async exportMerkleBatch(id: string): Promise<any> {
+    return this.request<any>(`/audit/merkle-batches/${encodeURIComponent(id)}/export`);
+  }
+
+  static async triggerMerkleBatch(): Promise<MerkleBatch | { status: string; message: string }> {
+    return this.request('/audit/merkle-batches/trigger', { method: 'POST' });
+  }
+
+  static async verifyMerkleInclusion(eventId: string): Promise<MerkleInclusionResult> {
+    return this.request<MerkleInclusionResult>(`/events/${encodeURIComponent(eventId)}/verify-inclusion`);
+  }
+
+  // --- SIGMA DETECTION RULES ---
+  static async listSigmaRules(): Promise<SigmaRule[]> {
+    return this.request<SigmaRule[]>('/rules/sigma');
+  }
+
+  static async getSigmaRule(id: string): Promise<SigmaRule> {
+    return this.request<SigmaRule>(`/rules/sigma/${encodeURIComponent(id)}`);
+  }
+
+  static async createSigmaRule(sigmaYaml: string): Promise<SigmaRule> {
+    return this.request<SigmaRule>('/rules/sigma', {
+      method: 'POST',
+      body: JSON.stringify({ sigmaYaml }),
+    });
+  }
+
+  static async updateSigmaRule(id: string, updates: { enabled?: boolean; sigmaYaml?: string }): Promise<SigmaRule> {
+    return this.request<SigmaRule>(`/rules/sigma/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  static async deleteSigmaRule(id: string): Promise<any> {
+    return this.request(`/rules/sigma/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async listAlerts(params: Record<string, any> = {}): Promise<{ content: SigmaMatch[]; totalElements: number; totalPages: number }> {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
+    return this.request(`/alerts?${query}`);
+  }
+
+  // --- PARSER DRIFT DETECTION ---
+  static async getParserDrift(parserName: string): Promise<ParserDriftMetrics> {
+    return this.request<ParserDriftMetrics>(`/parsers/${encodeURIComponent(parserName)}/drift`);
+  }
+
+  static async listDriftAlerts(status?: string): Promise<DriftAlert[]> {
+    const q = status ? `?status=${status}` : '';
+    return this.request<DriftAlert[]>(`/parsers/drift-alerts${q}`);
+  }
+
+  static async acknowledgeDriftAlert(id: number): Promise<DriftAlert> {
+    return this.request<DriftAlert>(`/parsers/drift-alerts/${id}/acknowledge`, {
+      method: 'PATCH',
+    });
+  }
+
+  static async triggerDriftCheck(): Promise<{ status: string; newAlertsCount: number; alerts: DriftAlert[] }> {
+    return this.request('/parsers/drift/check', { method: 'POST' });
+  }
+
+  // --- AUTO ROOT-CAUSE CORRELATED INCIDENTS ---
+  static async listIncidents(status?: string): Promise<CorrelatedIncident[]> {
+    const q = status ? `?status=${status}` : '';
+    return this.request<CorrelatedIncident[]>(`/incidents${q}`);
+  }
+
+  static async getIncident(id: number): Promise<IncidentDetailResponse> {
+    return this.request<IncidentDetailResponse>(`/incidents/${id}`);
+  }
+
+  static async updateIncidentStatus(id: number, status: string): Promise<CorrelatedIncident> {
+    return this.request<CorrelatedIncident>(`/incidents/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async triggerCorrelation(windowMinutes = 30): Promise<{ status: string; incidentsCreatedOrUpdated: number; incidents: CorrelatedIncident[] }> {
+    return this.request(`/incidents/correlate/trigger?windowMinutes=${windowMinutes}`, {
+      method: 'POST',
+    });
+  }
 }
+

@@ -186,3 +186,164 @@ export interface RuleItem {
   updatedAt: string;
   updatedBy: string;
 }
+
+// --- MERKLE AUDIT LEDGER ---
+export interface MerkleProofNode {
+  hash: string;
+  direction: 'LEFT' | 'RIGHT';
+}
+
+export interface MerkleBatch {
+  id: string;
+  batchNumber: number;
+  periodStart: string;
+  periodEnd: string;
+  eventCount: number;
+  merkleRoot: string;
+  leafOrderEventIds: string;
+  createdAt: string;
+}
+
+export interface MerkleInclusionResult {
+  eventId: string;
+  rawEventId: string;
+  rawHashSha256: string;
+  merkleBatchId?: string;
+  merkleRoot?: string;
+  leafIndex?: number;
+  totalLeaves?: number;
+  proofPath?: MerkleProofNode[];
+  verified: boolean;
+  batchedAt?: string;
+  verifiedAt: string;
+  statusMessage: string;
+}
+
+// --- SIGMA DETECTION RULES ---
+export interface SigmaRule {
+  id: string;
+  title: string;
+  description?: string;
+  sigmaYaml: string;
+  logsourceCategory?: string;
+  logsourceProduct?: string;
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'informational';
+  techniqueId?: string;
+  tactic?: string;
+  enabled: boolean;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SigmaMatch {
+  id: number;
+  eventId: string;
+  rawEventId?: string;
+  ruleId: string;
+  ruleTitle: string;
+  severity: string;
+  techniqueId?: string;
+  tactic?: string;
+  sourceIp?: string;
+  destinationIp?: string;
+  destinationPort?: number;
+  details?: string;
+  matchedAt: string;
+}
+
+// --- PARSER DRIFT MONITORING ---
+export interface DriftAlert {
+  id: number;
+  parserName: string;
+  parserVersion?: string;
+  baselineConfidence: number;
+  currentConfidence: number;
+  confidenceDrop: number;
+  successRate: number;
+  totalEvents: number;
+  dlqEvents: number;
+  status: 'OPEN' | 'ACKNOWLEDGED';
+  detectedAt: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  details?: string;
+}
+
+export interface ParserDriftMetrics {
+  parserName: string;
+  parserVersion: string;
+  formatType: string;
+  baselineConfidence: number;
+  currentConfidence: number;
+  confidenceDrop: number;
+  successRate: number;
+  sampleCount: number;
+  dlqCount: number;
+  healthStatus: 'HEALTHY' | 'WARNING' | 'DRIFT_ALERT';
+  activeAlert: boolean;
+  confidenceHistory: number[];
+  lastChecked: string;
+}
+
+// --- UNIFIED WEBSOCKET ALERTS ---
+export interface LiveAlertPayload {
+  alertType: 'SIGMA_DETECTION' | 'PARSER_DRIFT' | 'CORRELATED_INCIDENT';
+  type?: string;
+  id: number;
+  title?: string;
+  ruleId?: string;
+  parserName?: string;
+  incidentKey?: string;
+  correlationKey?: string;
+  severity?: string;
+  techniqueId?: string;
+  tactic?: string;
+  distinctTacticCount?: number;
+  eventCount?: number;
+  narrative?: string;
+  details?: string;
+  detectedAt?: string;
+  matchedAt?: string;
+}
+
+// --- CORRELATED INCIDENTS ---
+export interface CorrelatedIncident {
+  id: number;
+  incidentKey: string;
+  correlationKey: string;
+  keyType: 'IP' | 'USER';
+  rootEventId: string;
+  memberEventIds: string;
+  tacticChain: string;
+  narrativeText: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  status: 'OPEN' | 'INVESTIGATING' | 'CLOSED';
+  distinctTacticCount: number;
+  eventCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IncidentMemberDetail {
+  eventId: string;
+  timestamp?: string;
+  format?: string;
+  sourceIp?: string;
+  destinationIp?: string;
+  destinationPort?: number;
+  action?: string;
+  severity?: string;
+  matchedRules?: string[];
+  techniqueId?: string;
+  tactic?: string;
+}
+
+export interface IncidentDetailResponse {
+  incident: CorrelatedIncident;
+  memberEvents: IncidentMemberDetail[];
+}
+
+

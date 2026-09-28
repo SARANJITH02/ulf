@@ -1,0 +1,19 @@
+title: Network Service Discovery and Port Scanning
+id: SIGMA-T1046-SCAN-001
+status: production
+description: Detects network reconnaissance, port scans, and sweep probes in perimeter telemetry.
+level: medium
+tags:
+  - attack.t1046
+  - attack.discovery
+logsource:
+  category: network_traffic
+detection:
+  selection:
+    raw.message|contains:
+      - "scan"
+      - "sweep"
+      - "probe"
+      - "portscan"
+      - "ET SCAN"
+  condition: selection

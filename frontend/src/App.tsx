@@ -9,6 +9,9 @@ import { LiveStreamViewer } from './pages/LiveStreamViewer';
 import { ParserManager } from './pages/ParserManager';
 import { RulesConfig } from './pages/RulesConfig';
 import { SiemExporter } from './pages/SiemExporter';
+import { AuditLedger } from './pages/AuditLedger';
+import { DetectionRules } from './pages/DetectionRules';
+import { Incidents } from './pages/Incidents';
 
 // Simple route guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -37,6 +40,9 @@ export const App: React.FC = () => {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="lab" element={<UnknownLogLab />} />
             <Route path="stream" element={<LiveStreamViewer />} />
+            <Route path="incidents" element={<Incidents />} />
+            <Route path="audit" element={<AuditLedger />} />
+            <Route path="detections" element={<DetectionRules />} />
             <Route path="parsers" element={<ParserManager />} />
             <Route path="rules" element={<RulesConfig />} />
             <Route path="export" element={<SiemExporter />} />
