@@ -41,10 +41,21 @@ const ORDERED_MITRE_TACTICS = [
   'Impact',
 ];
 
+interface ChronologicalStage {
+  tactic: string;
+  mitreRank: number;
+  earliestTimestamp: number;
+  formattedTime: string;
+  matchedRules: string[];
+  techniques: string[];
+  eventCount: number;
+  isRoot: boolean;
+}
+
 export const Incidents: React.FC = () => {
-  const [incidents, setIncidents] = useState<CorrelatedIncident[]>([]);
+  const [allIncidents, setAllIncidents] = useState<CorrelatedIncident[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'INVESTIGATING' | 'CLOSED'>('ALL');
   const [scanning, setScanning] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [incidentDetails, setIncidentDetails] = useState<Record<number, IncidentDetailResponse>>({});
@@ -57,8 +68,8 @@ export const Incidents: React.FC = () => {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const data = await ApiClient.listIncidents(statusFilter === 'ALL' ? undefined : statusFilter);
-      setIncidents(data);
+      const data = await ApiClient.listIncidents();
+      setAllIncidents(data);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: 'Failed to fetch incidents: ' + err.message });
     } finally {
@@ -68,7 +79,7 @@ export const Incidents: React.FC = () => {
 
   useEffect(() => {
     fetchIncidents();
-  }, [statusFilter]);
+  }, []);
 
   const handleTriggerScan = async () => {
     try {
@@ -110,7 +121,7 @@ export const Incidents: React.FC = () => {
   const handleStatusChange = async (incidentId: number, newStatus: string) => {
     try {
       const updated = await ApiClient.updateIncidentStatus(incidentId, newStatus);
-      setIncidents((prev) => prev.map((inc) => (inc.id === incidentId ? updated : inc)));
+      setAllIncidents((prev) => prev.map((inc) => (inc.id === incidentId ? updated : inc)));
       setStatusMsg({ type: 'success', text: `Incident ${updated.incidentKey} status changed to ${newStatus}` });
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: 'Failed to update status: ' + err.message });
@@ -134,8 +145,73 @@ export const Incidents: React.FC = () => {
     }
   };
 
-  const openCount = incidents.filter((i) => i.status === 'OPEN').length;
-  const investigatingCount = incidents.filter((i) => i.status === 'INVESTIGATING').length;
+  const computeChronologicalStages = (inc: CorrelatedIncident, detail?: IncidentDetailResponse): ChronologicalStage[] => {
+    const staticTactics = parseTacticChain(inc.tacticChain);
+    if (!detail || !detail.memberEvents || detail.memberEvents.length === 0) {
+      return staticTactics.map((tactic, idx) => {
+        const norm = tactic.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const rankIdx = ORDERED_MITRE_TACTICS.findIndex(
+          (ot) => ot.toLowerCase().replace(/[^a-z0-9]/g, '') === norm
+        );
+        return {
+          tactic,
+          mitreRank: rankIdx >= 0 ? rankIdx + 1 : idx + 1,
+          earliestTimestamp: new Date(inc.firstSeenAt).getTime() + idx * 1000,
+          formattedTime: new Date(inc.firstSeenAt).toISOString().replace('T', ' ').substring(11, 19) + ' UTC',
+          matchedRules: [],
+          techniques: [],
+          eventCount: 1,
+          isRoot: idx === 0,
+        };
+      });
+    }
+
+    const tacticGroups: Record<string, typeof detail.memberEvents> = {};
+    for (const evt of detail.memberEvents) {
+      const tac = evt.tactic || 'General';
+      if (!tacticGroups[tac]) tacticGroups[tac] = [];
+      tacticGroups[tac].push(evt);
+    }
+
+    const stages: ChronologicalStage[] = [];
+    for (const [tactic, events] of Object.entries(tacticGroups)) {
+      const norm = tactic.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const rankIdx = ORDERED_MITRE_TACTICS.findIndex(
+        (ot) => ot.toLowerCase().replace(/[^a-z0-9]/g, '') === norm
+      );
+      const timestamps = events
+        .map((e) => (e.timestamp ? new Date(e.timestamp).getTime() : new Date(inc.firstSeenAt).getTime()))
+        .filter((t) => !isNaN(t));
+      const earliest = timestamps.length > 0 ? Math.min(...timestamps) : new Date(inc.firstSeenAt).getTime();
+      const rules = Array.from(new Set(events.flatMap((e) => e.matchedRules || [])));
+      const techList = Array.from(new Set(events.map((e) => e.techniqueId).filter(Boolean))) as string[];
+      const hasRoot = events.some((e) => e.eventId === inc.rootEventId);
+
+      stages.push({
+        tactic,
+        mitreRank: rankIdx >= 0 ? rankIdx + 1 : 99,
+        earliestTimestamp: earliest,
+        formattedTime: new Date(earliest).toISOString().replace('T', ' ').substring(11, 19) + ' UTC',
+        matchedRules: rules,
+        techniques: techList,
+        eventCount: events.length,
+        isRoot: hasRoot,
+      });
+    }
+
+    // Sort strictly by chronological first-occurrence timestamp
+    stages.sort((a, b) => a.earliestTimestamp - b.earliestTimestamp);
+    return stages;
+  };
+
+  const openCount = allIncidents.filter((i) => i.status === 'OPEN').length;
+  const investigatingCount = allIncidents.filter((i) => i.status === 'INVESTIGATING').length;
+  const closedCount = allIncidents.filter((i) => i.status === 'CLOSED').length;
+  const allCount = allIncidents.length;
+
+  const displayedIncidents = statusFilter === 'ALL'
+    ? allIncidents
+    : allIncidents.filter((i) => i.status === statusFilter);
 
   return (
     <div className="container" style={{ padding: '2rem 1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
@@ -211,7 +287,7 @@ export const Incidents: React.FC = () => {
             {openCount}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            Spanning $\ge 2$ distinct tactics
+            Spanning &ge; 2 distinct tactics
           </div>
         </div>
 
@@ -229,6 +305,18 @@ export const Incidents: React.FC = () => {
 
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+            Closed Incidents
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+            {closedCount}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+            Resolved & mitigated
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
             Correlation Window
           </div>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'JetBrains Mono, monospace' }}>
@@ -238,30 +326,35 @@ export const Incidents: React.FC = () => {
             Sliding window evaluator
           </div>
         </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-            Root Cause Model
-          </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Earliest Initiating Event
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            Heuristic hypothesis only
-          </div>
-        </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs with Synchronized Badge Counters */}
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-        {['ALL', 'OPEN', 'INVESTIGATING', 'CLOSED'].map((tab) => (
+        {[
+          { key: 'ALL' as const, label: 'ALL', count: allCount },
+          { key: 'OPEN' as const, label: 'OPEN', count: openCount },
+          { key: 'INVESTIGATING' as const, label: 'INVESTIGATING', count: investigatingCount },
+          { key: 'CLOSED' as const, label: 'CLOSED', count: closedCount },
+        ].map((tab) => (
           <button
-            key={tab}
-            onClick={() => setStatusFilter(tab)}
-            className={`btn ${statusFilter === tab ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, fontSize: '0.8125rem' }}
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={`btn ${statusFilter === tab.key ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            {tab} {tab === 'OPEN' && openCount > 0 && `(${openCount})`}
+            <span>{tab.label}</span>
+            <span
+              style={{
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                backgroundColor: statusFilter === tab.key ? 'rgba(255, 255, 255, 0.2)' : 'var(--bg-tertiary)',
+                color: statusFilter === tab.key ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {tab.count}
+            </span>
           </button>
         ))}
       </div>
@@ -272,20 +365,20 @@ export const Incidents: React.FC = () => {
           <RefreshCw size={24} className="spin" style={{ margin: '0 auto 1rem' }} />
           <div>Loading correlated multi-stage incidents...</div>
         </div>
-      ) : incidents.length === 0 ? (
+      ) : displayedIncidents.length === 0 ? (
         <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
           <CheckCircle2 size={36} style={{ margin: '0 auto 1rem', color: 'var(--status-success)' }} />
-          <div style={{ fontWeight: 600 }}>No Correlated Attack Incidents Found</div>
+          <div style={{ fontWeight: 600 }}>No Incidents Found ({statusFilter})</div>
           <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Incidents will automatically generate when multiple detections from the same source span 2 or more distinct MITRE tactics within the 30-minute window.
           </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {incidents.map((inc) => {
+          {displayedIncidents.map((inc) => {
             const isExpanded = expandedId === inc.id;
-            const tactics = parseTacticChain(inc.tacticChain);
             const detail = incidentDetails[inc.id];
+            const chronologicalStages = computeChronologicalStages(inc, detail);
 
             return (
               <div key={inc.id} className="card" style={{ overflow: 'hidden', borderLeft: `4px solid ${inc.severity === 'CRITICAL' ? 'var(--status-danger)' : inc.severity === 'HIGH' ? 'var(--status-warning)' : 'var(--accent-cyan)'}` }}>
@@ -360,58 +453,87 @@ export const Incidents: React.FC = () => {
                 {/* Expanded Story & Timeline */}
                 {isExpanded && (
                   <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                    {/* Horizontal Kill-Chain Timeline */}
+                    {/* Horizontal Chronological Kill-Chain Timeline */}
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
-                        MITRE Enterprise Kill-Chain Progression (Ordered Sequence)
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Chronological Attack Kill-Chain Progression (Temporal Execution Order)
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)' }}>
+                          Ordered by First Occurrence Timestamp
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', padding: '0.75rem 0.5rem', gap: '0.25rem' }}>
-                        {ORDERED_MITRE_TACTICS.map((tactic, idx) => {
-                          const isMatched = tactics.some((t) => t.toLowerCase() === tactic.toLowerCase());
+                      <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', padding: '0.75rem 0.5rem', gap: '0.5rem' }}>
+                        {chronologicalStages.map((stage, idx) => {
                           return (
-                            <React.Fragment key={tactic}>
+                            <React.Fragment key={stage.tactic + idx}>
                               <div
                                 style={{
                                   display: 'flex',
                                   flexDirection: 'column',
                                   alignItems: 'center',
-                                  minWidth: '100px',
-                                  textAlign: 'center',
-                                  opacity: isMatched ? 1 : 0.35,
+                                  minWidth: '130px',
+                                  padding: '0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  backgroundColor: 'var(--bg-tertiary)',
+                                  border: `1px solid ${stage.isRoot ? 'var(--accent-cyan)' : 'var(--status-danger)'}`,
+                                  position: 'relative',
                                 }}
                               >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+                                  <div
+                                    style={{
+                                      width: '22px',
+                                      height: '22px',
+                                      borderRadius: '50%',
+                                      backgroundColor: stage.isRoot ? 'var(--accent-cyan)' : 'var(--status-danger)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#000',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    {idx + 1}
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      padding: '0.1rem 0.35rem',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                      color: 'var(--text-muted)',
+                                    }}
+                                  >
+                                    MITRE Col #{stage.mitreRank}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center', marginBottom: '0.2rem' }}>
+                                  {stage.tactic}
+                                </span>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                                  {stage.formattedTime}
+                                </span>
+                                {stage.techniques.length > 0 && (
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', fontWeight: 700, marginTop: '0.25rem' }}>
+                                    {stage.techniques.join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                              {idx < chronologicalStages.length - 1 && (
                                 <div
                                   style={{
-                                    width: isMatched ? '24px' : '16px',
-                                    height: isMatched ? '24px' : '16px',
-                                    borderRadius: '50%',
-                                    backgroundColor: isMatched ? 'var(--status-danger)' : 'var(--border-color)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#fff',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 800,
-                                    boxShadow: isMatched ? '0 0 10px rgba(255, 61, 113, 0.6)' : 'none',
-                                    marginBottom: '0.35rem',
+                                    color: 'var(--accent-cyan)',
+                                    padding: '0 0.25rem',
                                   }}
                                 >
-                                  {isMatched ? '✓' : idx + 1}
+                                  <ArrowRight size={18} />
                                 </div>
-                                <span style={{ fontSize: '0.65rem', fontWeight: isMatched ? 800 : 500, color: isMatched ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: '1.2' }}>
-                                  {tactic}
-                                </span>
-                              </div>
-                              {idx < ORDERED_MITRE_TACTICS.length - 1 && (
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    height: '2px',
-                                    minWidth: '20px',
-                                    backgroundColor: isMatched ? 'var(--status-danger)' : 'var(--border-color)',
-                                    opacity: isMatched ? 0.8 : 0.3,
-                                  }}
-                                />
                               )}
                             </React.Fragment>
                           );

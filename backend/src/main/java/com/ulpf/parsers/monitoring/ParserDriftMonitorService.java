@@ -127,15 +127,16 @@ public class ParserDriftMonitorService {
 
         double confidenceDrop = Math.max(0.0, baseline - currentConfidence);
 
-        boolean confidenceBreach = confidenceDrop >= confidenceDropThreshold;
-        boolean successRateBreach = successRate < successRateThreshold && (successCount + dlqCount) >= 5;
+        boolean hasExplicitFailures = dlqCount > 0 || (successRate < successRateThreshold && (successCount + dlqCount) >= 5);
+        boolean confidenceAndSuccessBreach = (confidenceDrop >= confidenceDropThreshold) && (successRate < 0.95 || dlqCount > 0);
+        boolean shouldAlert = confidenceAndSuccessBreach || hasExplicitFailures;
 
-        if (confidenceBreach || successRateBreach) {
+        if (shouldAlert) {
             Optional<DriftAlert> openAlertOpt = driftAlertRepository.findFirstByParserNameAndStatus(parserName, "OPEN");
             if (openAlertOpt.isEmpty()) {
-                String reason = confidenceBreach
-                        ? String.format("Confidence dropped by %.1f%% (baseline: %.2f, rolling: %.2f)", confidenceDrop * 100, baseline, currentConfidence)
-                        : String.format("Success rate dropped to %.1f%% below threshold %.1f%%", successRate * 100, successRateThreshold * 100);
+                String reason = confidenceAndSuccessBreach
+                        ? String.format("Confidence dropped by %.1f%% (baseline: %.2f, rolling: %.2f) with degraded success rate (%.1f%%)", confidenceDrop * 100, baseline, currentConfidence, successRate * 100)
+                        : String.format("Success rate dropped to %.1f%% below threshold %.1f%% (%d DLQ quarantined payloads)", successRate * 100, successRateThreshold * 100, dlqCount);
 
                 DriftAlert alert = DriftAlert.builder()
                         .parserName(parserName)
@@ -207,8 +208,11 @@ public class ParserDriftMonitorService {
         Optional<DriftAlert> openAlert = driftAlertRepository.findFirstByParserNameAndStatus(parserName, "OPEN");
         boolean hasAlert = openAlert.isPresent();
 
+        boolean hasExplicitFailures = dlqCount > 0 || (successRate < successRateThreshold && (successCount + dlqCount) >= 5);
+        boolean isBreached = (drop >= confidenceDropThreshold && (successRate < 0.95 || dlqCount > 0)) || hasExplicitFailures;
+
         String health = "HEALTHY";
-        if (hasAlert || drop >= confidenceDropThreshold || successRate < successRateThreshold) {
+        if (hasAlert || isBreached) {
             health = "DRIFT_ALERT";
         } else if (drop >= (confidenceDropThreshold / 2.0)) {
             health = "WARNING";

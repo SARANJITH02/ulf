@@ -38,6 +38,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b}
       SYSLOG_UDP_PORT: 1514
       SYSLOG_TCP_PORT: 1514
+    volumes:
+      - ulpf-data:/app/data
     ports:
       - "8080:8080"
       - "1514:1514/udp"
@@ -60,6 +62,8 @@ services:
 
 volumes:
   postgres-data:
+    driver: local
+  ulpf-data:
     driver: local
 
 networks:

@@ -440,53 +440,63 @@ export const ParserManager: React.FC = () => {
             </button>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Timestamp</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Raw ID</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Failure Code</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Failure Reason</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 700, textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dlqEntries.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
-                      {new Date(d.createdAt).toISOString().replace('T', ' ').substring(0, 19)}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', fontFamily: 'JetBrains Mono, monospace' }}>
-                      {d.rawEventId}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span className="badge badge-danger">{d.failureCode}</span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
-                      {d.failureReason}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span className="badge badge-warning">{d.status}</span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <button
-                        onClick={() => {
-                          setSelectedDlq(d);
-                          setDlqModalOpen(true);
-                        }}
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                      >
-                        Inspect & Retry
-                      </button>
-                    </td>
+          {dlqEntries.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <CheckCircle2 size={36} style={{ margin: '0 auto 1rem', color: 'var(--status-success)' }} />
+              <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>All queues clear — 0 quarantined payloads</div>
+              <p style={{ fontSize: '0.875rem', marginTop: '0.25rem', color: 'var(--text-muted)' }}>
+                No unparseable or rejected raw payloads currently in the Dead-Letter Queue.
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Timestamp</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Raw ID</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Failure Code</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Failure Reason</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Status</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 700, textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {dlqEntries.map((d) => (
+                    <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
+                        {new Date(d.createdAt).toISOString().replace('T', ' ').substring(0, 19)}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontFamily: 'JetBrains Mono, monospace' }}>
+                        {d.rawEventId}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span className="badge badge-danger">{d.failureCode}</span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
+                        {d.failureReason}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span className="badge badge-warning">{d.status}</span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => {
+                            setSelectedDlq(d);
+                            setDlqModalOpen(true);
+                          }}
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
+                        >
+                          Inspect & Retry
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

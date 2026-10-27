@@ -20,27 +20,20 @@ export const SiemExporter: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    ApiClient.getRecentEvents().then((data) => {
-      setEvents(data);
-      if (data.length > 0 && !selectedEventId) {
-        setSelectedEventId(data[0].eventId);
-      }
-    }).catch(() => {});
-  }, []);
-
-  const runExport = async () => {
-    if (!selectedEventId) return;
+  const runExport = async (targetId?: string, targetFormat?: 'CEF' | 'LEEF' | 'ECS') => {
+    const id = targetId || selectedEventId;
+    const fmt = targetFormat || exportFormat;
+    if (!id) return;
     setLoading(true);
     try {
-      if (exportFormat === 'CEF') {
-        const res = await ApiClient.exportCef(selectedEventId);
+      if (fmt === 'CEF') {
+        const res = await ApiClient.exportCef(id);
         setExportedOutput(res.wireFormat);
-      } else if (exportFormat === 'LEEF') {
-        const res = await ApiClient.exportLeef(selectedEventId);
+      } else if (fmt === 'LEEF') {
+        const res = await ApiClient.exportLeef(id);
         setExportedOutput(res.wireFormat);
-      } else if (exportFormat === 'ECS') {
-        const res = await ApiClient.exportEcs(selectedEventId);
+      } else if (fmt === 'ECS') {
+        const res = await ApiClient.exportEcs(id);
         setExportedOutput(JSON.stringify(res, null, 2));
       }
     } catch (e: any) {
@@ -51,25 +44,46 @@ export const SiemExporter: React.FC = () => {
   };
 
   useEffect(() => {
+    ApiClient.getRecentEvents().then((data) => {
+      setEvents(data);
+      if (data.length > 0) {
+        const initialId = data[0].eventId;
+        setSelectedEventId(initialId);
+        runExport(initialId, exportFormat);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSelectEvent = (eventId: string) => {
+    setSelectedEventId(eventId);
+    runExport(eventId, exportFormat);
+  };
+
+  const handleFormatChange = (fmt: 'CEF' | 'LEEF' | 'ECS') => {
+    setExportFormat(fmt);
     if (selectedEventId) {
-      runExport();
+      runExport(selectedEventId, fmt);
     }
-  }, [selectedEventId, exportFormat]);
+  };
 
   const handleCopy = () => {
+    if (!exportedOutput) return;
     navigator.clipboard.writeText(exportedOutput);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    const ext = exportFormat === 'ECS' ? 'json' : 'log';
+    if (!selectedEventId || !exportedOutput) return;
+    const ext = exportFormat === 'ECS' ? 'json' : (exportFormat === 'LEEF' ? 'leef' : 'cef');
     const blob = new Blob([exportedOutput], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ulpf_export_${selectedEventId.substring(0, 12)}.${ext}`;
+    a.download = `ulpf_export_${selectedEventId}.${ext}`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -115,7 +129,7 @@ export const SiemExporter: React.FC = () => {
               events.map((evt) => (
                 <div
                   key={evt.eventId}
-                  onClick={() => setSelectedEventId(evt.eventId)}
+                  onClick={() => handleSelectEvent(evt.eventId)}
                   style={{
                     padding: '0.75rem',
                     borderRadius: 'var(--radius-md)',
@@ -157,7 +171,7 @@ export const SiemExporter: React.FC = () => {
               {(['CEF', 'LEEF', 'ECS'] as const).map((fmt) => (
                 <button
                   key={fmt}
-                  onClick={() => setExportFormat(fmt)}
+                  onClick={() => handleFormatChange(fmt)}
                   className={`btn ${exportFormat === fmt ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
                 >

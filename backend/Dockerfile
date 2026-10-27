@@ -12,12 +12,16 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine
 
 RUN apk add --no-cache curl tzdata \
-    && addgroup -S ulpf && adduser -S ulpf -G ulpf
+    && mkdir -p /app/data/db /app/data/ledger \
+    && addgroup -S ulpf && adduser -S ulpf -G ulpf \
+    && chown -R ulpf:ulpf /app
 
 WORKDIR /app
 COPY --from=builder /build/target/ulpf-backend-1.0.0.jar /app/ulpf-backend.jar
 
 USER ulpf:ulpf
+
+VOLUME ["/app/data"]
 
 EXPOSE 8080 1514/udp 1514/tcp
 

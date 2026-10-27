@@ -55,7 +55,7 @@ public class DrainStyleTemplateMiner {
     }
 
     /**
-     * Mine the structural template of a log message using Drain algorithm.
+     * Mine the structural template of a log message using Drain algorithm with Key-Value pre-pass.
      */
     public TemplateMiningResult mine(String rawLog) {
         if (rawLog == null || rawLog.isBlank()) {
@@ -75,10 +75,12 @@ public class DrainStyleTemplateMiner {
         List<String> templateTokens;
         if (matchedCluster == null) {
             templateTokens = new ArrayList<>(tokens);
-            // Identify dynamic/variable tokens directly (e.g. IPs, numbers, dates, hashes)
+            // Pre-pass: Identify key-value structural tokens and dynamic variables
             for (int i = 0; i < templateTokens.size(); i++) {
                 String t = templateTokens.get(i);
-                if (isDynamicToken(t)) {
+                if (isKeyValueToken(t)) {
+                    templateTokens.set(i, extractKeyPrefix(t) + VARIABLE_TOKEN);
+                } else if (isDynamicToken(t)) {
                     templateTokens.set(i, VARIABLE_TOKEN);
                 }
             }
@@ -88,8 +90,20 @@ public class DrainStyleTemplateMiner {
             // Merge with existing cluster template
             templateTokens = matchedCluster.getLogTemplateTokens();
             for (int i = 0; i < Math.min(tokens.size(), templateTokens.size()); i++) {
-                if (!templateTokens.get(i).equals(tokens.get(i))) {
-                    templateTokens.set(i, VARIABLE_TOKEN);
+                String existing = templateTokens.get(i);
+                String current = tokens.get(i);
+                if (!existing.equals(current)) {
+                    if (isKeyValueToken(current) && isKeyValueToken(existing)) {
+                        String k1 = extractKeyPrefix(existing);
+                        String k2 = extractKeyPrefix(current);
+                        if (k1.equals(k2)) {
+                            templateTokens.set(i, k1 + VARIABLE_TOKEN);
+                        } else {
+                            templateTokens.set(i, VARIABLE_TOKEN);
+                        }
+                    } else {
+                        templateTokens.set(i, VARIABLE_TOKEN);
+                    }
                 }
             }
             matchedCluster.setClusterSize(matchedCluster.getClusterSize() + 1);
@@ -104,7 +118,12 @@ public class DrainStyleTemplateMiner {
             String templateTok = i < templateTokens.size() ? templateTokens.get(i) : VARIABLE_TOKEN;
             String rawTok = tokens.get(i);
 
-            if (VARIABLE_TOKEN.equals(templateTok)) {
+            if (templateTok.contains("=") && templateTok.endsWith(VARIABLE_TOKEN)) {
+                varIndices.add(i);
+                slots.put(i, rawTok);
+                String keyPart = extractKeyPrefix(templateTok);
+                regex.append(Pattern.quote(keyPart)).append("(?<token").append(i).append(">\\S+)");
+            } else if (VARIABLE_TOKEN.equals(templateTok)) {
                 varIndices.add(i);
                 slots.put(i, rawTok);
                 regex.append("(?<token").append(i).append(">\\S+)");
@@ -129,14 +148,32 @@ public class DrainStyleTemplateMiner {
         return new ArrayList<>(Arrays.asList(split));
     }
 
+    public static boolean isKeyValueToken(String token) {
+        if (token == null) return false;
+        int eqIdx = token.indexOf('=');
+        if (eqIdx > 0 && eqIdx < token.length() - 1) {
+            String keyPart = token.substring(0, eqIdx);
+            return keyPart.matches("^[a-zA-Z_][a-zA-Z0-9_.-]*$");
+        }
+        return false;
+    }
+
+    public static String extractKeyPrefix(String token) {
+        int eqIdx = token.indexOf('=');
+        if (eqIdx >= 0) {
+            return token.substring(0, eqIdx + 1);
+        }
+        return "";
+    }
+
     private boolean isDynamicToken(String token) {
         if (token == null || token.isEmpty()) return false;
         // IP Address check (e.g. 192.168.1.5 or with port 192.168.1.5:80 or /443)
         if (token.matches(".*\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}.*")) return true;
         // Pure number (port, PID, counter)
         if (token.matches("^\\d+$")) return true;
-        // Hex / Hash / UUID
-        if (token.matches("^[0-9a-fA-F-]{8,}$")) return true;
+        // Hex / Hash / UUID (only if containing hex digits/hyphens and at least one number)
+        if (token.matches("^[0-9a-fA-F-]{8,}$") && token.matches(".*\\d.*")) return true;
         // Action words (ALLOW, DENY, BLOCK, DROP, PERMIT, PASS, REJECT, ACCEPT)
         String upper = token.toUpperCase().replaceAll("[\\[\\](),\"';]", "");
         if (upper.equals("ALLOW") || upper.equals("ALLOWED") || upper.equals("PERMIT") ||
@@ -147,10 +184,6 @@ public class DrainStyleTemplateMiner {
         }
         // Timestamp / Date tokens
         if (token.matches(".*\\d{2}:\\d{2}:\\d{2}.*") || token.matches(".*\\d{4}-\\d{2}-\\d{2}.*")) return true;
-        // Key-Value variable pairs (e.g. user=guest, proto=TCP, src=..., dst=...)
-        if (token.contains("=") && token.indexOf('=') > 0 && token.indexOf('=') < token.length() - 1) {
-            return true;
-        }
         return false;
     }
 
@@ -167,6 +200,9 @@ public class DrainStyleTemplateMiner {
         for (int i = 0; i < Math.min(tokens.size(), MAX_DEPTH); i++) {
             String token = tokens.get(i);
             Node next = current.children.get(token);
+            if (next == null && isKeyValueToken(token)) {
+                next = current.children.get(extractKeyPrefix(token) + VARIABLE_TOKEN);
+            }
             if (next == null) {
                 next = current.children.get(VARIABLE_TOKEN);
             }
@@ -188,7 +224,9 @@ public class DrainStyleTemplateMiner {
 
         for (int i = 0; i < Math.min(tokens.size(), MAX_DEPTH); i++) {
             String token = tokens.get(i);
-            if (isDynamicToken(token)) {
+            if (isKeyValueToken(token)) {
+                token = extractKeyPrefix(token) + VARIABLE_TOKEN;
+            } else if (isDynamicToken(token)) {
                 token = VARIABLE_TOKEN;
             }
             final String tok = token;
@@ -209,7 +247,11 @@ public class DrainStyleTemplateMiner {
 
             int matchCount = 0;
             for (int i = 0; i < tokens.size(); i++) {
-                if (VARIABLE_TOKEN.equals(tTokens.get(i)) || tTokens.get(i).equals(tokens.get(i))) {
+                String tTok = tTokens.get(i);
+                String rawTok = tokens.get(i);
+                if (VARIABLE_TOKEN.equals(tTok) || tTok.equals(rawTok)) {
+                    matchCount++;
+                } else if (tTok.contains("=") && isKeyValueToken(rawTok) && extractKeyPrefix(tTok).equals(extractKeyPrefix(rawTok))) {
                     matchCount++;
                 }
             }

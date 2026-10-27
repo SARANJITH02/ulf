@@ -334,6 +334,7 @@ export const AuditLedger: React.FC = () => {
             setBatchDetails(null);
           }}
           title={`Merkle Batch Inspection — ${selectedBatch.id}`}
+          maxWidth="950px"
         >
           {loadingDetails ? (
             <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -369,23 +370,23 @@ export const AuditLedger: React.FC = () => {
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
                   Deterministic Leaf Order (Tree Ingestion Order)
                 </div>
-                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ maxHeight: '340px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                   <table className="table" style={{ width: '100%', fontSize: '0.8rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.5rem' }}>Index</th>
-                        <th style={{ padding: '0.5rem' }}>Raw Event ID</th>
-                        <th style={{ padding: '0.5rem' }}>Event ID</th>
-                        <th style={{ padding: '0.5rem' }}>Leaf Hash (SHA-256)</th>
+                        <th style={{ padding: '0.6rem 0.75rem', width: '60px' }}>Index</th>
+                        <th style={{ padding: '0.6rem 0.75rem', minWidth: '180px' }}>Raw Event ID</th>
+                        <th style={{ padding: '0.6rem 0.75rem', minWidth: '180px' }}>Event ID</th>
+                        <th style={{ padding: '0.6rem 0.75rem' }}>Leaf Hash (SHA-256)</th>
                       </tr>
                     </thead>
                     <tbody>
                       {batchDetails.leafEvents?.map((leaf: any) => (
                         <tr key={leaf.leafIndex} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.5rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>#{leaf.leafIndex}</td>
-                          <td style={{ padding: '0.5rem', fontFamily: 'JetBrains Mono, monospace' }}>{leaf.rawEventId}</td>
-                          <td style={{ padding: '0.5rem', fontFamily: 'JetBrains Mono, monospace' }}>{leaf.eventId || '—'}</td>
-                          <td style={{ padding: '0.5rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          <td style={{ padding: '0.6rem 0.75rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>#{leaf.leafIndex}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{leaf.rawEventId}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{leaf.eventId || '—'}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
                             {leaf.rawHashSha256}
                           </td>
                         </tr>

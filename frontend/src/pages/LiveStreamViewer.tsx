@@ -106,6 +106,10 @@ export const LiveStreamViewer: React.FC = () => {
 
   const [merkleResult, setMerkleResult] = useState<any | null>(null);
   const [verifyingMerkle, setVerifyingMerkle] = useState(false);
+  const [triggeringMerkle, setTriggeringMerkle] = useState(false);
+
+  const currentUser = ApiClient.getCurrentUser();
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   const handleOpenInspector = async (record: NormalizedEventRecord) => {
     setSelectedEvent(record);
@@ -473,6 +477,32 @@ export const LiveStreamViewer: React.FC = () => {
                     Batch ID: <strong>{merkleResult.merkleBatchId}</strong> • Leaf Index: <strong>#{merkleResult.leafIndex}</strong> of <strong>{merkleResult.totalLeaves}</strong><br />
                     Merkle Root: <strong>{merkleResult.merkleRoot}</strong><br />
                     Proof Path Depth: <strong>{merkleResult.proofPath?.length || 0} sibling nodes</strong>
+                  </div>
+                )}
+                {!merkleResult.verified && (
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    {isAdmin && (
+                      <button
+                        onClick={async () => {
+                          if (!selectedEvent) return;
+                          setTriggeringMerkle(true);
+                          try {
+                            await ApiClient.triggerMerkleBatch();
+                            await handleVerifyMerkle(selectedEvent.eventId);
+                          } catch (e: any) {
+                            alert('Failed to trigger Merkle batch: ' + e.message);
+                          } finally {
+                            setTriggeringMerkle(false);
+                          }
+                        }}
+                        disabled={triggeringMerkle}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <ShieldCheck size={14} />
+                        <span>{triggeringMerkle ? 'Batching & Verifying...' : 'Trigger Batch Now'}</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
